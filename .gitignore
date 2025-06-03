@@ -4,7 +4,14 @@ __pycache__/
 build/
 dist/
 wheels/
-
+sami/
+shima/
+Riham/
+nour/
+tashkeela_audio_output/
+output_audio_tashkeelav2_test/
+triton/
+csvfiles/
 *.egg-info
 
 # Virtual environments
@@ -13,8 +20,13 @@ wheels/
 .gradio
 
 **/*.pth
+**/*.zip
+**/*.csv
+
+
 **/*.mp3
 !example_prompt.mp3
+uploadHF.py
 **/*.txt
 **/*.ipynb
 

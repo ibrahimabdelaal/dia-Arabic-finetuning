@@ -27,8 +27,8 @@
         "dtype": "float32"
     },
     "data": {
-        "text_length": 512,
-        "audio_length": 1536,
+        "text_length": 4096,
+        "audio_length": 4096,
         "channels": 9,
         "text_pad_value": 0,
         "audio_eos_value": 1024,

@@ -10,8 +10,14 @@ def convert_checkpoint(input_ckpt: str, output_ckpt: str, config_path: str):
     # 1) Reconstruct exactly the same compiled model you saved
     dia_cfg = DiaConfig.load(config_path)
     model = DiaModel(dia_cfg).to(device)
-    model = model.half()
-    model = torch.compile(model, backend="inductor")
+   # model = model.half()
+    #model = torch.compile(model, backend="inductor")
+    # def convert_model_to_bf16(model):
+    # for param in model.parameters():
+    #     param.data = param.data.to(torch.bfloat16)
+    # for buffer_name, buffer in model.named_buffers():
+    #     model.register_buffer(buffer_name, buffer.to(torch.bfloat16))
+    # return model
 
     # 2) Load your compiled/half checkpoint
     state = torch.load(input_ckpt, map_location=device)

@@ -48,8 +48,19 @@ def _sample_next_token(
         indices_to_remove_BCxV = torch.zeros_like(sorted_indices_to_remove_BCxV)
         indices_to_remove_BCxV.scatter_(dim=-1, index=sorted_indices_BCxV, src=sorted_indices_to_remove_BCxV)
         logits_BCxV = logits_BCxV.masked_fill(indices_to_remove_BCxV, -torch.inf)
+    # Inside _sample_next_token, before the final softmax
+    if torch.all(logits_BCxV == -torch.inf):
+        print("WARNING: All logits are -inf before final softmax in _sample_next_token!")
+        # Handle this case: maybe return a PAD token or a fixed valid token
+        # For debugging, you could try:
+        # return torch.full_like(sampled_indices_BC.squeeze(-1), fill_value=YOUR_PAD_TOKEN_ID_OR_A_DEFAULT_VALID_ID)
 
     final_probs_BCxV = torch.softmax(logits_BCxV, dim=-1)
+
+    if torch.isnan(final_probs_BCxV).any():
+        print("WARNING: NaNs in final_probs_BCxV in _sample_next_token!")
+        # print(f"Logits that led to NaN: {logits_BCxV}")
+  
 
     sampled_indices_BC = torch.multinomial(final_probs_BCxV, num_samples=1)
     sampled_indices_C = sampled_indices_BC.squeeze(-1)
@@ -182,29 +193,47 @@ class Dia:
         text_pad_value = self.config.data.text_pad_value
         max_len = self.config.data.text_length
 
-        byte_text = text.encode("utf-8")
-        
-        
-        replaced_bytes = byte_text
-
+        # --- Define LANG2BYTE here or ensure it's accessible (e.g., self.LANG2BYTE) ---
         LANG2BYTE = {
-            "en": 3,
-            "de": 4,
-            "fr": 5,
-            "es": 6,
-            "it": 7,
-            "nl": 14,
-            "pl": 15,
-            "pt": 16,
-            "tr": 17,
-            "hu": 18,
+            "en": 3, "de": 4, "fr": 5, "es": 6, "it": 7,
+            "nl": 14, "pl": 15, "pt": 16, "tr": 17, "hu": 18,
+            "ar": 19,
         }
+        # --- ---
 
-        for lang, byte_val in LANG2BYTE.items():
-            tag = f"[{lang}]".encode("ascii")        # e.g. b"[de]"
-            code = bytes([byte_val])                 # e.g. b"\x04"
-            replaced_bytes = replaced_bytes.replace(tag, code)
-        text_tokens = list(replaced_bytes)
+        byte_text_full = text.encode("utf-8")
+        processed_bytes = byte_text_full
+
+        # --- Logic to handle the language prefix (similar to collate_fn) ---
+        # Expects input `text` to be like "[ar]Arabic sentence here"
+        # or "English sentence here" (if no tag, it won't be replaced, which might be desired for a default lang)
+
+        # First, try to strip the language tag and replace it with the special byte
+        found_lang_tag = False
+        for lang_code_key, lang_byte_val in LANG2BYTE.items():
+            prefix_tag_bytes = f"[{lang_code_key}]".encode("utf-8") # Use utf-8 for consistency
+            if byte_text_full.startswith(prefix_tag_bytes):
+                # Prepend the special language byte and take the rest of the string
+                processed_bytes = bytes([lang_byte_val]) + byte_text_full[len(prefix_tag_bytes):]
+                print(f"Replaced prefix '{prefix_tag_bytes.decode('utf-8')}' with byte {lang_byte_val}")
+                found_lang_tag = True
+                break
+        
+        if not found_lang_tag:
+            print(f"No known language tag prefix found in: {text[:30]}...") # Print start of text if no tag
+            # Decide on default behavior:
+            # Option 1: Assume a default language byte if none found (e.g., for English if no tag)
+            # default_lang_byte = LANG2BYTE.get("en") # Example
+            # if default_lang_byte is not None:
+            #     processed_bytes = bytes([default_lang_byte]) + byte_text_full
+            #     print(f"Prepended default language byte {default_lang_byte} for English.")
+            # Option 2: Process as is (model might have learned to handle untagged text as a specific language)
+            # processed_bytes = byte_text_full (already set)
+
+        # --- Continue with padding and tensor creation ---
+        text_tokens = list(processed_bytes)
+        print(f"Input text for processing: {text}")
+        print(f"Processed byte tokens (first 50): {text_tokens[:50]}") # Print only first few for brevity
 
         current_len = len(text_tokens)
         padding_needed = max_len - current_len
@@ -221,13 +250,22 @@ class Dia:
 
         src_tokens = torch.from_numpy(padded_text_np).to(torch.long).to(self.device).unsqueeze(0)  # [1, S]
         src_positions = torch.arange(max_len, device=self.device).to(torch.long).unsqueeze(0)  # [1, S]
-
         src_padding_mask = (src_tokens != text_pad_value).to(self.device)  # [1, S]
+        enc_self_attn_mask = self._create_attn_mask(src_padding_mask, src_padding_mask, is_causal=False) # [1,1,S,S] for DiaModel
 
-        enc_self_attn_mask = self._create_attn_mask(src_padding_mask, src_padding_mask, is_causal=False)  # [1, S, S]
-
+        print(f"Final src_tokens (first 50): {src_tokens[0, :50].tolist()}")
         return src_tokens, src_positions, src_padding_mask, enc_self_attn_mask
 
+# You'll also need a _create_attn_mask method if it's part of the class
+# Example placeholder:
+# def _create_attn_mask(self, query_pad, key_pad, is_causal):
+#     # Simplified example, actual implementation might differ
+#     q_len, k_len = query_pad.size(-1), key_pad.size(-1)
+#     mask = (query_pad.unsqueeze(2) & key_pad.unsqueeze(1)) # (B, Q_len, K_len)
+#     if is_causal:
+#         causal_mask = torch.tril(torch.ones((q_len, k_len), dtype=torch.bool, device=self.device))
+#         mask = mask & causal_mask
+#     return mask.unsqueeze(1) # (B, 1, Q_len, K_len) for multi-head attention
     @torch.inference_mode()
     def generate(
         self,
@@ -281,6 +319,9 @@ class Dia:
 
         # 3. Prepare Decoder Inputs
         # 3-1. Allocate KV Cache (Static)
+        print("here is the encoder out ",encoder_out.shape)
+        print("here is the encoder out ",encoder_out)
+
         decoder_cross_attention_cache: list[KVCache] = self.model.decoder.precompute_cross_attention_kv(
             max_tokens, encoder_out, src_positions_BxS
         )
@@ -422,7 +463,11 @@ class Dia:
                 use_cfg_filter=use_cfg_filter,
                 cfg_filter_top_k=cfg_filter_top_k,
             )
+        
+           # print(f"Step: {step}, Predicted Tokens (pred_C): {pred_C.tolist()}")
 
+            if pred_C[0] == audio_eos_value:
+                print(f"INFO: EOS token ({audio_eos_value}) detected on channel 0 at step {step}!")
             generation_step_index = step - current_step
             if audio_prompt_path is None:
                 pred_C = torch.where(

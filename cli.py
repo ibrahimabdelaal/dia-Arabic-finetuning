@@ -1,7 +1,6 @@
 import argparse
 import os
 import random
-
 import numpy as np
 import soundfile as sf
 import torch
@@ -25,9 +24,30 @@ def set_seed(seed: int):
 def main():
     parser = argparse.ArgumentParser(description="Generate audio using the Dia model.")
 
-    parser.add_argument("text", type=str, help="Input text for speech generation.")
+    # Dictionary of predefined texts for different languages
+    language_texts = {
+        "ar": "مِنْ جِهَةٍ ثَانِيَةٍ أَشَارَتْ إلَى أَنَّ أَهَمَّ الْمَحَطَّاتِ الْفَنِّيَّةِ فِي حَيَاتِهَا كَانَتْ وُقُوفُهَا عَلَى أَهَمِّ الْمَسَارِحِ كَمَسْرَحِ تِرْيَانُونَ فِي بَارِيسَ وَمَسَارِحِ عِدَّةٍ فِي أَمِيرِكَا"
+    }
+    
     parser.add_argument(
-        "--output", type=str, required=True, help="Path to save the generated audio file (e.g., output.wav)."
+        "--text", "-t",
+        type=str,
+        default="مِنْ جِهَةٍ ثَانِيَةٍ أَشَارَتْ إلَى أَنَّ أَهَمَّ الْمَحَطَّاتِ الْفَنِّيَّةِ فِي حَيَاتِهَا كَانَتْ وُقُوفُهَا عَلَى أَهَمِّ الْمَسَارِحِ كَمَسْرَحِ تِرْيَانُونَ فِي بَارِيسَ وَمَسَارِحِ عِدَّةٍ فِي أَمِيرِكَا",
+        help="Input text for speech generation."
+    )
+    
+    parser.add_argument(
+        "--language", "-l",
+        type=str,
+        choices=list(language_texts.keys()),
+        default="ar",
+        help="Language code to prefix the text (e.g., ar for Arabic)."
+    )
+    parser.add_argument(
+        "--output", "-o",
+        type=str, 
+        required=True, 
+        help="Path to save the generated audio file (e.g., output.wav)."
     )
 
     parser.add_argument(
@@ -37,36 +57,62 @@ def main():
         help="Hugging Face repository ID (e.g., nari-labs/Dia-1.6B).",
     )
     parser.add_argument(
-        "--local-paths", action="store_true", help="Load model from local config and checkpoint files."
+        "--local-paths", 
+        action="store_true", 
+        help="Load model from local config and checkpoint files."
     )
 
     parser.add_argument(
-        "--config", type=str, help="Path to local config.json file (required if --local-paths is set)."
+        "--config", "-c",
+        type=str, 
+        default="dia/config_inference.json", 
+        help="Path to local config.json file (default: dia/config_inference.json)."
     )
     parser.add_argument(
-        "--checkpoint", type=str, help="Path to local model checkpoint .pth file (required if --local-paths is set)."
+        "--checkpoint", "-ckpt",
+        type=str, 
+        help="Path to local model checkpoint .pth file (required if --local-paths is set)."
     )
     parser.add_argument(
-        "--audio-prompt", type=str, default=None, help="Path to an optional audio prompt WAV file for voice cloning."
+        "--audio-prompt", 
+        type=str, 
+        default=None, 
+        help="Path to an optional audio prompt WAV file for voice cloning."
     )
 
     gen_group = parser.add_argument_group("Generation Parameters")
     gen_group.add_argument(
         "--max-tokens",
         type=int,
-        default=None,
+        default=3000,
         help="Maximum number of audio tokens to generate (defaults to config value).",
     )
     gen_group.add_argument(
-        "--cfg-scale", type=float, default=3.0, help="Classifier-Free Guidance scale (default: 3.0)."
+        "--cfg-scale", 
+        type=float, 
+        default=3.0, 
+        help="Classifier-Free Guidance scale (default: 3.0)."
     )
     gen_group.add_argument(
-        "--temperature", type=float, default=1.3, help="Sampling temperature (higher is more random, default: 0.7)."
+        "--temperature", 
+        type=float, 
+        default=0.4, 
+        help="Sampling temperature (higher is more random, default: 0.4)."
     )
-    gen_group.add_argument("--top-p", type=float, default=0.95, help="Nucleus sampling probability (default: 0.95).")
+    gen_group.add_argument(
+        "--top-p", 
+        type=float, 
+        default=0.95, 
+        help="Nucleus sampling probability (default: 0.95)."
+    )
 
     infra_group = parser.add_argument_group("Infrastructure")
-    infra_group.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility.")
+    infra_group.add_argument(
+        "--seed", 
+        type=int, 
+        default=None, 
+        help="Random seed for reproducibility."
+    )
     infra_group.add_argument(
         "--device",
         type=str,
@@ -86,7 +132,7 @@ def main():
             parser.error(f"Config file not found: {args.config}")
         if not os.path.exists(args.checkpoint):
             parser.error(f"Checkpoint file not found: {args.checkpoint}")
-
+            
     # Set seed if provided
     if args.seed is not None:
         set_seed(args.seed)
@@ -118,9 +164,15 @@ def main():
     print("Generating audio...")
     try:
         sample_rate = 44100  # Default assumption
-
+        
+        # Prepare the text with language prefix if not already present
+        input_text = args.text
+        if args.language and not input_text.startswith(f"[{args.language}]"):
+            input_text = f"[{args.language}]{input_text}"
+            
+        print(f"Generating speech for text: {input_text}")
         output_audio = model.generate(
-            text=args.text,
+            text=input_text,
             audio_prompt_path=args.audio_prompt,
             max_tokens=args.max_tokens,
             cfg_scale=args.cfg_scale,

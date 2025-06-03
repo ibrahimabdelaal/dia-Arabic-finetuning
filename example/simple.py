@@ -3,9 +3,9 @@ import soundfile as sf
 from dia.model import Dia
 
 
-model = Dia.from_pretrained("nari-labs/Dia-1.6B")
+model = Dia.from_pretrained("/home/ubuntu/work/dia-finetuning/.cpkts/dia_finetune_cv /ckpt_step6000.pth")
 
-text = "[S1] Dia is an open weights text to dialogue model. [S2] You get full control over scripts and voices. [S1] Wow. Amazing. (laughs) [S2] Try it now on Git hub or Hugging Face."
+text = "ar: لِتَقْيِيمِ الأَدَاءِ وَدِقَّةِ وُسُومِ اللُّغَةِ بِشَكْلٍ كَامِلٍ، تَحْتَوِي هَذِهِ الجُمْلَةُ الاِخْتِبَارِيَّةُ عَلَى عِدَّةِ جُمَلٍ تَبَعِيَّةٍ، وَعَلَامَاتِ تَرْقِيمٍ مُخْتَلِفَةٍ، وَعَدَدٍ كَافٍ مِنَ الْكَلِمَاتِ."
 
 output = model.generate(text)
 

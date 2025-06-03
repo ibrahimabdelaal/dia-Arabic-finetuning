@@ -53,38 +53,30 @@ LANG2BYTE = {
     "pt": 16,
     "tr": 17,
     "hu": 18,
+    "ar": 19,
     
 }
 
 test_sentences = {
-    "en": "In order to fully assess performance and the accuracy of language tags, this test sentence contains multiple subordinate clauses, varied punctuation, and a sufficient word count.",
-    "de": "Um Leistung und die Korrektheit der Sprach-Tags umfassend zu prüfen, enthält dieser Testsatz mehrere Nebensätze, unterschiedliche Zeichensetzung und eine ausreichende Wortzahl.",
-    #"fr": "Pour évaluer pleinement les performances et la précision des balises de langue, cette phrase de test comporte plusieurs propositions subordonnées, une ponctuation variée et un nombre de mots suffisant.",
-    #"es": "Para evaluar completamente el rendimiento y la precisión de las etiquetas de idioma, esta frase de prueba incluye varias oraciones subordinadas, puntuación diversa y la cantidad de palabras necesaria.",
-    #"it": "Per valutare appieno le prestazioni e la precisione dei tag di lingua, questa frase di prova contiene più proposizioni subordinate, punteggiatura varia e un numero adeguato di parole.",
-    #"nl": "Om de prestaties en de nauwkeurigheid van de taaltags volledig te beoordelen, bevat deze testzin meerdere ondergeschikte zinnen, gevarieerde interpunctie en een voldoende woordenaantal.",
-    #"pl": "Aby w pełni ocenić wydajność i poprawność tagów językowych, to zdanie testowe zawiera kilka zdań podrzędnych, zróżnicowaną interpunkcję i wystarczającą liczbę słów.",
-    #"pt": "Para avaliar completamente o desempenho e a precisão das marcas de idioma, esta frase de teste contém várias orações subordinadas, pontuação diversa e um número adequado de palavras.",
-    #"tr": "Akışı elemeden performansı ve dil etiketlerinin doğruluğunu tam olarak değerlendirmek için bu test cümlesi birden fazla yan cümle, çeşitli noktalama işaretleri ve yeterli kelime sayısı içerir.",
-    #"hu": "A teljesítmény és a nyelvcímkék pontosságának átfogó értékeléséhez ez a tesztmondat több mellékmondatot, változatos írásjeleket és elegendő szószámot tartalmazza."
-}
+    "ar": "[S1] l aa k i n _dbl_ l a y s a t _dbl_ l a d a y n aa _dbl_ b i T a w l aa t i n _dbl_ d a w r i _dbl_ y i n _dbl_ q a w i _dbl_ y a t i n",
+   }
 
 @dataclass
 class TrainConfig:
     epochs: int = 1
     batch_size: int = 2
-    grad_accum_steps: int = 2
+    grad_accum_steps: int = 8
     learning_rate: float = 1e-5
-    warmup_steps: int = 500
+    warmup_steps: int = 1000
     unconditional_frac: float = 0.15
-    eval_step: int = 200
+    eval_step: int = 1000
     save_step: int = 2000
     split_ratio: float = 0.997
     shuffle_buffer_size: int = None  # for streaming shuffle
-    seed: int = 42                # seed for reproducibility
+    seed: int = 43             # seed for reproducibility #42
     runs_dir: Path = Path("runs")
     run_name: str = "dia_finetune_cv"
-    output_dir: Path = Path(".cpkts/dia_finetune_cv ")
+    output_dir: Path = Path(".cpkts/dia_finetune_cv_3")
 
 
 def get_args() -> argparse.Namespace:
@@ -547,4 +539,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

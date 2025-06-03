@@ -21,8 +21,8 @@ parser.add_argument(
     "--device", type=str, default=None, help="Force device (e.g., 'cuda', 'mps', 'cpu')"
 )
 parser.add_argument("--share", action="store_true", help="Enable Gradio sharing")
-parser.add_argument("--local_ckpt", type=str, default="ckpt_epoch1_fp32.pth", help="path to your local checkpoint")
-parser.add_argument("--config", type=str, default="dia/config_inference.json", help="path to your inference")
+parser.add_argument("--local_ckpt", type=str, default="/home/ubuntu/work/dia-finetuning/.cpkts/dia_finetune_cv_3/ckpt_step20000.pth", help="path to your local checkpoint")
+parser.add_argument("--config", type=str, default="/home/ubuntu/work/dia-finetuning/dia/config_inference.json", help="path to your inference")
 parser.add_argument("--half", type=bool, default=False, help="load model in fp16")
 parser.add_argument("--compile", type=bool, default=False, help="torch compile model")
 
@@ -310,7 +310,7 @@ with gr.Blocks(css=css) as demo:
                 )
                 temperature = gr.Slider(
                     label="Temperature (Randomness)",
-                    minimum=1.0,
+                    minimum=0.1,
                     maximum=1.5,
                     value=1.3,  # Default from inference.py
                     step=0.05,
