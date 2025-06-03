@@ -13,7 +13,15 @@ output_audio_tashkeelav2_test/
 triton/
 csvfiles/
 *.egg-info
-
+fix_csv_improved.py
+fix_csv.py
+run_csv_fix_and_test.sh
+run_dac_check.py
+run_improved_csv_fix.sh
+run_verify_paths.sh
+test_dataset.py
+test_model.py
+verify_audio_paths.py
 # Virtual environments
 .venv
 
